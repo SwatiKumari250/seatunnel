@@ -2,7 +2,7 @@
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
  * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
+ * The ASF licenses this file to you under the Apache License, Version 2.0
  * (the "License"); you may not use this file except in compliance with
  * the License.  You may obtain a copy of the License at
  *
@@ -34,6 +34,7 @@ import javax.servlet.http.HttpServletResponse;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 
 /** Basic authentication filter for the web UI. */
 @Slf4j
@@ -83,10 +84,22 @@ public class BasicAuthFilter implements Filter {
                 String username = values[0];
                 String password = values[1];
 
-                // Check if the username and password match the configured values
-                if (username.equals(httpConfig.getBasicAuthUsername())
-                        && password.equals(httpConfig.getBasicAuthPassword())) {
-                    // Authentication successful, proceed with the request
+                // Compare both credentials independently to avoid short-circuiting one comparison
+                String configuredUsername = httpConfig.getBasicAuthUsername();
+                String configuredPassword = httpConfig.getBasicAuthPassword();
+                boolean usernameMatches =
+                        configuredUsername != null
+                                && MessageDigest.isEqual(
+                                        username.getBytes(StandardCharsets.UTF_8),
+                                        configuredUsername.getBytes(StandardCharsets.UTF_8));
+                boolean passwordMatches =
+                        configuredPassword != null
+                                && MessageDigest.isEqual(
+                                        password.getBytes(StandardCharsets.UTF_8),
+                                        configuredPassword.getBytes(StandardCharsets.UTF_8));
+
+                // Authentication successful, proceed with the request
+                if (usernameMatches && passwordMatches) {
                     chain.doFilter(request, response);
                     return;
                 }
